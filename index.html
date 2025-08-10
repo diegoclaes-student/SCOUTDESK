@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestion Unité Scout</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1><i class="fas fa-campground"></i> Gestion Unité Scout</h1>
+
+    <div class="context-bar">
+      <div class="context-item">
+        <span id="auth-status">Non connecté</span>
+        <button class="btn btn-secondary" id="btn-login">Se connecter</button>
+        <button class="btn btn-primary" id="btn-register">Créer un compte</button>
+        <button class="btn btn-danger" id="btn-logout" style="display:none;">Se déconnecter</button>
+      </div>
+      <div class="context-item" id="section-switcher-wrap" style="display:none;">
+        <label for="section-switcher"><i class="fas fa-layer-group"></i> Section active:</label>
+        <select id="section-switcher">
+          <option value="Castors">Castors</option>
+          <option value="Louveteaux">Louveteaux</option>
+          <option value="Éclaireurs">Éclaireurs</option>
+          <option value="Pionniers">Pionniers</option>
+        </select>
+      </div>
+    </div>
+
+    <nav>
+      <ul>
+        <li><a href="#dashboard" class="nav-link active">Tableau de bord</a></li>
+        <li><a href="#tresorerie" class="nav-link">Trésorerie</a></li>
+        <li><a href="#chefs" class="nav-link">Chefs</a></li>
+        <li><a href="#enfants" class="nav-link">Enfants</a></li>
+        <li><a href="#planning" class="nav-link">Planning</a></li>
+        <li><a href="#inventaire" class="nav-link">Inventaire</a></li>
+        <li><a href="#approbations" class="nav-link" id="nav-approb" style="display:none;">Comptes à approuver</a></li>
+        <li><a href="#administration" class="nav-link" id="nav-admin" style="display:none;">Administration</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <section id="dashboard" class="module active">
+      <h2>Tableau de bord</h2>
+      <div id="approval-warning" style="display:none; background:#fff3cd; border:1px solid #ffeeba; color:#856404; padding:12px; border-radius:6px; margin-bottom:12px;">
+        Votre compte est en attente d’approbation. Certaines fonctionnalités sont désactivées.
+      </div>
+      <div class="dashboard-grid">
+        <div class="card">
+          <h3><i class="fas fa-euro-sign"></i> Finances</h3>
+          <p class="stat-number" id="budget-total">€0</p>
+          <p>Budget disponible</p>
+        </div>
+        <div class="card">
+          <h3><i class="fas fa-users"></i> Chefs</h3>
+          <p class="stat-number" id="chefs-count">—</p>
+          <p>Chefs actifs</p>
+        </div>
+        <div class="card">
+          <h3><i class="fas fa-child"></i> Enfants</h3>
+          <p class="stat-number" id="enfants-count">—</p>
+          <p>Scouts inscrits</p>
+        </div>
+        <div class="card">
+          <h3><i class="fas fa-calendar"></i> Prochaine activité</h3>
+          <p class="stat-text" id="next-activity">Aucune planifiée</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="tresorerie" class="module">
+      <h2>Trésorerie & Dettes</h2>
+      <div class="module-actions">
+        <button class="btn btn-primary" onclick="showAddTransactionModal()"><i class="fas fa-plus"></i> Nouvelle transaction</button>
+        <button class="btn btn-secondary" onclick="exportFinances()"><i class="fas fa-download"></i> Exporter</button>
+      </div>
+      <div class="finance-summary">
+        <div class="summary-card positive"><h4>Recettes</h4><span id="total-recettes">€0</span></div>
+        <div class="summary-card negative"><h4>Dépenses</h4><span id="total-depenses">€0</span></div>
+        <div class="summary-card"><h4>Solde</h4><span id="solde-total">€0</span></div>
+      </div>
+      <div class="table-container">
+        <table id="transactions-table">
+          <thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Montant</th><th>Actions</th></tr></thead>
+          <tbody id="transactions-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="chefs" class="module">
+      <h2>Listing des Chefs</h2>
+      <div class="table-container">
+        <table id="chefs-table">
+          <thead><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Téléphone</th><th>Section</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody id="chefs-tbody"><tr><td colspan="7" style="text-align:center;color:#666;">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="enfants" class="module">
+      <h2>Listing des Enfants</h2>
+      <div class="module-actions">
+        <button class="btn btn-primary" onclick="showAddEnfantModal()"><i class="fas fa-plus"></i> Ajouter enfant</button>
+        <select id="filter-section" onchange="filterEnfantsBySection()">
+          <option value="">Toutes les sections</option>
+          <option value="Castors">Castors (6-8 ans)</option>
+          <option value="Louveteaux">Louveteaux (8-12 ans)</option>
+          <option value="Éclaireurs">Éclaireurs (12-16 ans)</option>
+          <option value="Pionniers">Pionniers (16-18 ans)</option>
+        </select>
+      </div>
+      <div class="table-container">
+        <table id="enfants-table">
+          <thead><tr><th>Nom</th><th>Prénom</th><th>Âge</th><th>Section</th><th>Parent/Contact</th><th>Téléphone</th><th>Actions</th></tr></thead>
+          <tbody id="enfants-tbody"><tr><td colspan="7" style="text-align:center;color:#666;">Aucun enfant (local)</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="planning" class="module">
+      <h2>Planning Général</h2>
+      <div class="module-actions">
+        <button class="btn btn-primary" onclick="showAddEventModal()"><i class="fas fa-plus"></i> Ajouter événement</button>
+        <select id="planning-filter" onchange="filterPlanningEvents()">
+          <option value="">Section active + Commun</option>
+          <option value="section-only">Seulement ma section</option>
+          <option value="commun">Événements communs</option>
+          <option value="Castors">Castors</option>
+          <option value="Louveteaux">Louveteaux</option>
+          <option value="Éclaireurs">Éclaireurs</option>
+          <option value="Pionniers">Pionniers</option>
+        </select>
+      </div>
+      <div class="planning-tabs">
+        <button class="tab-button active" onclick="switchPlanningView('calendar', this)"><i class="fas fa-calendar-alt"></i> Vue Calendrier</button>
+        <button class="tab-button" onclick="switchPlanningView('list', this)"><i class="fas fa-list"></i> Vue Liste</button>
+      </div>
+      <div id="calendar-view" class="planning-view active">
+        <div class="calendar-container">
+          <div class="calendar-header">
+            <button class="btn btn-secondary" onclick="previousMonth()"><i class="fas fa-chevron-left"></i></button>
+            <h3 id="current-month"></h3>
+            <button class="btn btn-secondary" onclick="nextMonth()"><i class="fas fa-chevron-right"></i></button>
+          </div>
+          <div id="calendar-grid"></div>
+        </div>
+      </div>
+      <div id="list-view" class="planning-view">
+        <div class="events-list" id="events-list"></div>
+      </div>
+    </section>
+
+    <section id="inventaire" class="module">
+      <h2>Inventaire</h2>
+      <div class="module-actions">
+        <button class="btn btn-primary" onclick="showAddItemModal()"><i class="fas fa-plus"></i> Ajouter matériel</button>
+      </div>
+      <div class="inventory-stats">
+        <div class="stat-card"><h4>Total articles</h4><span id="total-items">0</span></div>
+        <div class="stat-card"><h4>Disponible</h4><span id="available-items">0</span></div>
+        <div class="stat-card"><h4>Emprunté</h4><span id="borrowed-items">0</span></div>
+      </div>
+      <div class="table-container">
+        <table id="inventaire-table">
+          <thead><tr><th>Nom</th><th>Catégorie</th><th>Quantité</th><th>État</th><th>Localisation</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody id="inventaire-tbody"><tr><td colspan="7" style="text-align:center;color:#666;">Aucun matériel (local)</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="approbations" class="module">
+      <h2>Comptes à approuver</h2>
+      <p>Visible par: Super Admin, Chef d'unité, Chef de section (sa section seulement).</p>
+      <div class="table-container">
+        <table id="pending-users-table">
+          <thead><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Section</th><th>Rôle demandé</th><th>Actions</th></tr></thead>
+          <tbody id="pending-users-tbody"><tr><td colspan="6" style="text-align:center;color:#666;">À implémenter</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="administration" class="module">
+      <h2>Administration - Gestion Staff</h2>
+      <p>Super admin: peut définir Chef d'unité et Chef de section. Chef d'unité: peut définir Chef de section + section.</p>
+      <div class="table-container">
+        <table id="admin-staff-table">
+          <thead><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Rôle</th><th>Section</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody id="admin-staff-tbody"><tr><td colspan="7" style="text-align:center;color:#666;">À implémenter</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modals -->
+<div id="modal-overlay" class="modal-overlay" onclick="closeModal()"></div>
+
+<!-- Auth: Login -->
+<div id="login-modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3>Se connecter</h3>
+    <form id="login-form">
+      <input type="email" id="login-email" placeholder="Email" required/>
+      <input type="password" id="login-password" placeholder="Mot de passe" required/>
+      <button type="submit" class="btn btn-primary">Connexion</button>
+    </form>
+  </div>
+</div>
+
+<!-- Auth: Register -->
+<div id="register-modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3>Créer un compte</h3>
+    <form id="register-form">
+      <input type="email" id="reg-email" placeholder="Email" required/>
+      <input type="password" id="reg-password" placeholder="Mot de passe" required/>
+      <input type="text" id="reg-nom" placeholder="Nom" required/>
+      <input type="text" id="reg-prenom" placeholder="Prénom" required/>
+      <input type="text" id="reg-totem" placeholder="Totem (optionnel)"/>
+      <input type="date" id="reg-date-naissance" placeholder="Date de naissance" required/>
+      <input type="tel" id="reg-telephone" placeholder="Téléphone" required/>
+      <select id="reg-section" required>
+        <option value="">Section</option>
+        <option value="Castors">Castors</option>
+        <option value="Louveteaux">Louveteaux</option>
+        <option value="Éclaireurs">Éclaireurs</option>
+        <option value="Pionniers">Pionniers</option>
+      </select>
+      <button type="submit" class="btn btn-primary">Demander un compte</button>
+    </form>
+  </div>
+</div>
+
+<!-- Transaction Modal -->
+<div id="transaction-modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3>Nouvelle Transaction</h3>
+    <form id="transaction-form">
+      <input type="date" id="transaction-date" required>
+      <input type="text" id="transaction-description" placeholder="Description" required>
+      <select id="transaction-type" required>
+        <option value="">Type de transaction</option>
+        <option value="recette">Recette</option>
+        <option value="depense">Dépense</option>
+      </select>
+      <input type="number" id="transaction-amount" placeholder="Montant (€)" step="0.01" required>
+      <button type="submit" class="btn btn-primary">Ajouter</button>
+    </form>
+  </div>
+</div>
+
+<!-- Enfant Modal -->
+<div id="enfant-modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3>Ajouter Enfant</h3>
+    <form id="enfant-form">
+      <input type="text" id="enfant-nom" placeholder="Nom" required>
+      <input type="text" id="enfant-prenom" placeholder="Prénom" required>
+      <input type="number" id="enfant-age" placeholder="Âge" min="6" max="18" required>
+      <select id="enfant-section" required>
+        <option value="">Section</option>
+        <option value="Castors">Castors (6-8 ans)</option>
+        <option value="Louveteaux">Louveteaux (8-12 ans)</option>
+        <option value="Éclaireurs">Éclaireurs (12-16 ans)</option>
+        <option value="Pionniers">Pionniers (16-18 ans)</option>
+      </select>
+      <input type="text" id="enfant-parent" placeholder="Nom du parent/contact" required>
+      <input type="tel" id="enfant-telephone" placeholder="Téléphone parent" required>
+      <button type="submit" class="btn btn-primary">Ajouter</button>
+    </form>
+  </div>
+</div>
+
+<!-- Event Modal -->
+<div id="event-modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3>Ajouter Événement</h3>
+    <form id="event-form">
+      <input type="text" id="event-title" placeholder="Titre de l'événement" required>
+      <input type="date" id="event-date" required>
+      <input type="time" id="event-time" required>
+      <textarea id="event-description" placeholder="Description"></textarea>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="event-commun"> Événement commun (toutes sections)</label>
+      </div>
+      <div class="checkbox-group" id="event-sections-group">
+        <span>Sélectionner section(s):</span>
+        <label><input type="checkbox" name="event-sections" value="Castors"> Castors</label>
+        <label><input type="checkbox" name="event-sections" value="Louveteaux"> Louveteaux</label>
+        <label><input type="checkbox" name="event-sections" value="Éclaireurs"> Éclaireurs</label>
+        <label><input type="checkbox" name="event-sections" value="Pionniers"> Pionniers</label>
+      </div>
+      <button type="submit" class="btn btn-primary">Ajouter</button>
+    </form>
+  </div>
+</div>
+
+<!-- Item Modal -->
+<div id="item-modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3>Ajouter Matériel</h3>
+    <form id="item-form">
+      <input type="text" id="item-nom" placeholder="Nom du matériel" required>
+      <select id="item-category" required>
+        <option value="">Catégorie</option>
+        <option value="Camping">Camping</option>
+        <option value="Cuisine">Cuisine</option>
+        <option value="Sport">Sport</option>
+        <option value="Activités">Activités</option>
+        <option value="Sécurité">Sécurité</option>
+        <option value="Autres">Autres</option>
+      </select>
+      <input type="number" id="item-quantity" placeholder="Quantité" min="1" required>
+      <select id="item-etat" required>
+        <option value="">État</option>
+        <option value="Excellent">Excellent</option>
+        <option value="Bon">Bon</option>
+        <option value="Moyen">Moyen</option>
+        <option value="Mauvais">Mauvais</option>
+      </select>
+      <input type="text" id="item-location" placeholder="Localisation" required>
+      <button type="submit" class="btn btn-primary">Ajouter</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // ====== Configuration API / Auth ======
+  const API_BASE = 'http://localhost:3000';
+  let TOKEN = localStorage.getItem('token') || '';
+  let CURRENT_USER = null;
+  let CURRENT_SECTION = localStorage.getItem('current_section') || 'Castors';
+
+  function setToken(token) {
+    TOKEN = token || '';
+    if (token) localStorage.setItem('token', token); else localStorage.removeItem('token');
+  }
+
+  async function req(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (TOKEN) headers.Authorization = 'Bearer ' + TOKEN;
+    const res = await fetch(API_BASE + path, { ...options, headers });
+    const text = await res.text();
+    let body; try { body = text ? JSON.parse(text) : {}; } catch { body = text; }
+    if (!res.ok) {
+      if (res.status === 401) {
+        updateAuthUI(null);
+      }
+      throw { status: res.status, body };
+    }
+    return body;
+  }
+
+  // ====== UI helpers ======
+  function euro(amount) {
+    // amount can be euros or cents based on API object
+    const cents = Math.abs(amount) < 5 && String(amount).includes('.') ? Math.round(amount * 100) : Math.round(amount);
+    return (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+  }
+
+  function qs(s, root = document) { return root.querySelector(s); }
+  function qsa(s, root = document) { return Array.from(root.querySelectorAll(s)); }
+
+  // ====== Modals ======
+  const overlay = () => qs('#modal-overlay');
+  function openModal(id) {
+    overlay().style.display = 'block';
+    const m = qs(id);
+    if (m) m.style.display = 'block';
+  }
+  function hideAllModals() {
+    qsa('.modal').forEach(m => m.style.display = 'none');
+    overlay().style.display = 'none';
+  }
+  function closeModal() { hideAllModals(); }
+  window.closeModal = closeModal;
+
+  // ====== Auth UI ======
+  function updateAuthUI(user) {
+    CURRENT_USER = user || null;
+    const authStatus = qs('#auth-status');
+    const btnLogin = qs('#btn-login');
+    const btnRegister = qs('#btn-register');
+    const btnLogout = qs('#btn-logout');
+    const sectionWrap = qs('#section-switcher-wrap');
+    const navApprob = qs('#nav-approb');
+    const navAdmin = qs('#nav-admin');
+    const approvalWarning = qs('#approval-warning');
+
+    if (user) {
+      authStatus.textContent = `Connecté: ${user.email} (${user.role})`;
+      btnLogin.style.display = 'none';
+      btnRegister.style.display = 'none';
+      btnLogout.style.display = 'inline-block';
+      sectionWrap.style.display = 'flex';
+      navAdmin.style.display = (user.role === 'SUPERADMIN') ? 'inline-block' : 'none';
+      navApprob.style.display = (user.role === 'SUPERADMIN' || user.role === 'CHEF_UNITE' || user.role === 'CHEF_SECTION') ? 'inline-block' : 'none';
+      approvalWarning.style.display = (user.status && user.status !== 'APPROVED') ? 'block' : 'none';
+    } else {
+      authStatus.textContent = 'Non connecté';
+      btnLogin.style.display = 'inline-block';
+      btnRegister.style.display = 'inline-block';
+      btnLogout.style.display = 'none';
+      sectionWrap.style.display = 'none';
+      navAdmin.style.display = 'none';
+      navApprob.style.display = 'none';
+      approvalWarning.style.display = 'none';
+    }
+  }
+
+  async function fetchMe() {
+    try {
+      const me = await req('/api/auth/me');
+      updateAuthUI(me);
+      return me;
+    } catch {
+      updateAuthUI(null);
+      return null;
+    }
+  }
+
+  async function login(email, password) {
+    const data = await req('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    setToken(data.token);
+    updateAuthUI(data.user);
+    return data.user;
+  }
+
+  // ====== Navigation (modules) ======
+  function showModule(id) {
+    qsa('.module').forEach(sec => sec.classList.remove('active'));
+    const target = qs(id);
+    if (target) target.classList.add('active');
+    qsa('.nav-link').forEach(a => a.classList.toggle('active', a.getAttribute('href') === id));
+  }
+
+  function initNavigation() {
+    document.body.addEventListener('click', (e) => {
+      const link = e.target.closest('.nav-link');
+      if (!link) return;
+      e.preventDefault();
+      const id = link.getAttribute('href');
+      history.replaceState(null, '', id);
+      showModule(id);
+      // Lazy-load section data
+      if (id === '#tresorerie') loadTransactions();
+      if (id === '#chefs') loadChefs();
+      if (id === '#enfants') renderEnfants();
+      if (id === '#planning') renderCalendar(); // refresh view
+      if (id === '#inventaire') renderInventaire();
+    });
+
+    // On load via hash
+    const initial = location.hash || '#dashboard';
+    showModule(initial);
+  }
+
+  // ====== Dashboard (basique) ======
+  async function refreshDashboard() {
+    // Budget via /api/finance/accounts
+    try {
+      const accounts = await req('/api/finance/accounts');
+      const totalCents = (accounts || []).reduce((sum, a) => sum + (a.balance_cents || 0), 0);
+      qs('#budget-total').textContent = euro(totalCents);
+    } catch {
+      qs('#budget-total').textContent = '€0';
+    }
+    // Les autres stats restent placeholders si pas d’API dédiée
+  }
+
+  // ====== Trésorerie ======
+  async function loadTransactions() {
+    const tbody = qs('#transactions-tbody');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;">Chargement…</td></tr>';
+    try {
+      const res = await req('/api/finance/transactions?limit=100');
+      const txs = Array.isArray(res) ? res : (res.items || []);
+      if (!txs.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;">Aucune transaction</td></tr>';
+      } else {
+        tbody.innerHTML = txs.map(t => {
+          const date = t.date || (t.created_at || '').slice(0,10);
+          const desc = t.description || t.category_name || '—';
+          // Try to infer kind and amount
+          const amountCents = typeof t.amount_cents === 'number' ? t.amount_cents : (typeof t.amount === 'number' ? Math.round(t.amount * 100) : 0);
+          const kind = t.kind || (amountCents >= 0 ? 'INCOME' : 'EXPENSE');
+          const amountTxt = euro(Math.abs(amountCents));
+          const sign = (kind === 'EXPENSE' || amountCents < 0) ? '-' : '+';
+          const typeTxt = (kind === 'INCOME' ? 'Recette' : 'Dépense');
+          return `<tr>
+            <td>${date || ''}</td>
+            <td>${escapeHtml(desc)}</td>
+            <td>${typeTxt}</td>
+            <td class="${sign==='+'?'positive':'negative'}">${sign} ${amountTxt}</td>
+            <td><button class="btn btn-secondary btn-xs" data-action="tx-details" data-id="${t.id || ''}">Détails</button></td>
+          </tr>`;
+        }).join('');
+      }
+      // Summary
+      let recettes = 0, depenses = 0;
+      qsa('#transactions-tbody tr').forEach(tr => {
+        const td = tr.children[3]; if (!td) return;
+        const isPos = td.classList.contains('positive');
+        const val = parseFloat(td.textContent.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+        if (isPos) recettes += val; else depenses += val;
+      });
+      // Convert back to cents for display formatting
+      qs('#total-recettes').textContent = recettes.toLocaleString('fr-FR', { style:'currency', currency:'EUR' });
+      qs('#total-depenses').textContent = depenses.toLocaleString('fr-FR', { style:'currency', currency:'EUR' });
+      const solde = recettes - depenses;
+      qs('#solde-total').textContent = solde.toLocaleString('fr-FR', { style:'currency', currency:'EUR' });
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#a00;">Erreur: ${escapeHtml(JSON.stringify(e.body || e))}</td></tr>`;
+    }
+  }
+
+  function showAddTransactionModal() {
+    const form = qs('#transaction-form');
+    form.reset();
+    const today = new Date().toISOString().slice(0,10);
+    qs('#transaction-date').value = today;
+    openModal('#transaction-modal');
+  }
+  window.showAddTransactionModal = showAddTransactionModal;
+
+  function exportFinances() {
+    // Export CSV des transactions
+    (async () => {
+      try {
+        const res = await req('/api/finance/transactions?limit=1000');
+        const txs = Array.isArray(res) ? res : (res.items || []);
+        const headers = ['id','date','description','kind','method','category_name','amount_eur'];
+        const rows = [headers.join(',')].concat(txs.map(t => {
+          const amountCents = typeof t.amount_cents === 'number' ? t.amount_cents : (typeof t.amount === 'number' ? Math.round(t.amount * 100) : 0);
+          const vals = [
+            t.id ?? '',
+            (t.date || (t.created_at||'')).slice(0,10),
+            csvEscape(t.description || ''),
+            t.kind || '',
+            t.method || '',
+            csvEscape(t.category_name || ''),
+            (amountCents/100).toString().replace('.', ',')
+          ];
+          return vals.join(',');
+        }));
+        const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'transactions.csv';
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      } catch (e) {
+        alert('Export impossible: ' + (e.body && e.body.error ? e.body.error : e.status || e));
+      }
+    })();
+  }
+  window.exportFinances = exportFinances;
+
+  qs('#transaction-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const date = qs('#transaction-date').value;
+    const desc = qs('#transaction-description').value.trim();
+    const type = qs('#transaction-type').value;
+    const amountEur = parseFloat(qs('#transaction-amount').value);
+    if (!date || !desc || !type || isNaN(amountEur)) return;
+
+    const payload = {
+      date,
+      amount: amountEur,
+      kind: type === 'recette' ? 'INCOME' : 'EXPENSE',
+      method: type === 'recette' ? 'BANK' : 'CASH',
+      category_name: type === 'recette' ? 'Cotisation' : 'Activité',
+      description: desc
+    };
+    try {
+      await req('/api/finance/transactions', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      hideAllModals();
+      await loadTransactions();
+      await refreshDashboard();
+    } catch (err) {
+      alert('Erreur ajout transaction: ' + (err.body && err.body.error ? err.body.error : err.status || err));
+    }
+  });
+
+  // ====== Chefs (meilleur effort: endpoint peut varier) ======
+  async function loadChefs() {
+    const tbody = qs('#chefs-tbody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#666;">Chargement…</td></tr>';
+    try {
+      // Essais d’endpoints possibles
+      const endpoints = ['/api/chefs', '/api/users?role=CHEF', '/api/staff'];
+      let data = null, lastErr = null;
+      for (const ep of endpoints) {
+        try { data = await req(ep); if (data) { data._ep = ep; break; } } catch (e) { lastErr = e; }
+      }
+      const list = Array.isArray(data) ? data : (data && data.items ? data.items : []);
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#666;">Aucun chef trouvé</td></tr>`;
+      } else {
+        tbody.innerHTML = list.map(u => {
+          return `<tr>
+            <td>${escapeHtml(u.nom || u.last_name || '')}</td>
+            <td>${escapeHtml(u.prenom || u.first_name || '')}</td>
+            <td>${escapeHtml(u.email || '')}</td>
+            <td>${escapeHtml(u.telephone || u.phone || '')}</td>
+            <td>${escapeHtml(u.section || u.section_name || '')}</td>
+            <td>${escapeHtml(u.status || '')}</td>
+            <td><button class="btn btn-secondary btn-xs" disabled>—</button></td>
+          </tr>`;
+        }).join('');
+      }
+      qs('#chefs-count').textContent = String(list.length);
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#a00;">Erreur chargement chefs</td></tr>`;
+    }
+  }
+
+  // ====== Enfants (stockage local pour démo) ======
+  function getLocalEnfants() {
+    try { return JSON.parse(localStorage.getItem('enfants') || '[]'); } catch { return []; }
+  }
+  function setLocalEnfants(arr) {
+    localStorage.setItem('enfants', JSON.stringify(arr));
+  }
+  function renderEnfants() {
+    const section = qs('#filter-section').value;
+    const all = getLocalEnfants();
+    const list = all.filter(e => !section || e.section === section);
+    const tbody = qs('#enfants-tbody');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#666;">Aucun enfant (local)</td></tr>';
+    } else {
+      tbody.innerHTML = list.map(e => `
+        <tr>
+          <td>${escapeHtml(e.nom)}</td>
+          <td>${escapeHtml(e.prenom)}</td>
+          <td>${escapeHtml(String(e.age))}</td>
+          <td>${escapeHtml(e.section)}</td>
+          <td>${escapeHtml(e.parent)}</td>
+          <td>${escapeHtml(e.tel)}</td>
+          <td><button class="btn btn-danger btn-xs" data-action="del-enfant" data-id="${e.id}">Supprimer</button></td>
+        </tr>
+      `).join('');
+    }
+    qs('#enfants-count').textContent = String(all.length);
+  }
+  function showAddEnfantModal() {
+    qs('#enfant-form').reset();
+    openModal('#enfant-modal');
+  }
+  window.showAddEnfantModal = showAddEnfantModal;
+  function filterEnfantsBySection() { renderEnfants(); }
+  window.filterEnfantsBySection = filterEnfantsBySection;
+
+  qs('#enfant-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nom = qs('#enfant-nom').value.trim();
+    const prenom = qs('#enfant-prenom').value.trim();
+    const age = parseInt(qs('#enfant-age').value, 10);
+    const section = qs('#enfant-section').value;
+    const parent = qs('#enfant-parent').value.trim();
+    const tel = qs('#enfant-telephone').value.trim();
+    const all = getLocalEnfants();
+    all.push({ id: Date.now(), nom, prenom, age, section, parent, tel });
+    setLocalEnfants(all);
+    hideAllModals();
+    renderEnfants();
+  });
+
+  document.body.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action="del-enfant"]');
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    const all = getLocalEnfants().filter(x => x.id !== id);
+    setLocalEnfants(all);
+    renderEnfants();
+  });
+
+  // ====== Planning (local) ======
+  let CAL_DATE = new Date();
+  function renderCalendar() {
+    const monthEl = qs('#current-month');
+    const grid = qs('#calendar-grid');
+    const year = CAL_DATE.getFullYear();
+    const month = CAL_DATE.getMonth();
+    const first = new Date(year, month, 1);
+    const last = new Date(year, month + 1, 0);
+    const startDay = (first.getDay() + 6) % 7; // Lundi=0
+    const days = last.getDate();
+    monthEl.textContent = first.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+
+    const events = getLocalEvents();
+    grid.innerHTML = '';
+    // headers
+    const names = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+    names.forEach(n => {
+      const h = document.createElement('div');
+      h.className = 'calendar-day header';
+      h.textContent = n;
+      grid.appendChild(h);
+    });
+    // blanks
+    for (let i = 0; i < startDay; i++) {
+      const blank = document.createElement('div');
+      blank.className = 'calendar-day blank';
+      grid.appendChild(blank);
+    }
+    // days
+    for (let d = 1; d <= days; d++) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-day';
+      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      cell.innerHTML = `<div class="date">${d}</div>`;
+      const evts = events.filter(ev => ev.date === dateStr && eventMatchesFilter(ev));
+      evts.forEach(ev => {
+        const tag = document.createElement('div');
+        tag.className = 'event-tag';
+        tag.textContent = ev.title;
+        cell.appendChild(tag);
+      });
+      grid.appendChild(cell);
+    }
+    renderEventsList();
+  }
+  function switchPlanningView(view, btn) {
+    qsa('.planning-view').forEach(v => v.classList.remove('active'));
+    qsa('.tab-button').forEach(b => b.classList.remove('active'));
+    if (view === 'calendar') qs('#calendar-view').classList.add('active');
+    else qs('#list-view').classList.add('active');
+    btn.classList.add('active');
+  }
+  window.switchPlanningView = switchPlanningView;
+  function previousMonth() { CAL_DATE.setMonth(CAL_DATE.getMonth() - 1); renderCalendar(); }
+  function nextMonth() { CAL_DATE.setMonth(CAL_DATE.getMonth() + 1); renderCalendar(); }
+  window.previousMonth = previousMonth;
+  window.nextMonth = nextMonth;
+
+  function getLocalEvents() {
+    try { return JSON.parse(localStorage.getItem('events') || '[]'); } catch { return []; }
+  }
+  function setLocalEvents(arr) { localStorage.setItem('events', JSON.stringify(arr)); }
+  function eventMatchesFilter(ev) {
+    const f = qs('#planning-filter').value;
+    if (!f) return ev.commun || (ev.sections || []).includes(CURRENT_SECTION);
+    if (f === 'section-only') return (ev.sections || []).includes(CURRENT_SECTION);
+    if (f === 'commun') return !!ev.commun;
+    return (ev.sections || []).includes(f);
+  }
+  function filterPlanningEvents() { renderCalendar(); }
+  window.filterPlanningEvents = filterPlanningEvents;
+
+  function renderEventsList() {
+    const listEl = qs('#events-list');
+    const list = getLocalEvents().filter(eventMatchesFilter).sort((a,b) => a.date.localeCompare(b.date));
+    if (!list.length) { listEl.innerHTML = '<div style="color:#666;">Aucun événement</div>'; return; }
+    listEl.innerHTML = list.map(ev => `
+      <div class="event-row">
+        <div><strong>${escapeHtml(ev.title)}</strong> – ${ev.date} ${ev.time || ''}</div>
+        <div>${escapeHtml(ev.description || '')}</div>
+        <div style="font-size:12px;color:#666;">${ev.commun ? 'Commun' : (ev.sections || []).join(', ')}</div>
+      </div>
+    `).join('');
+  }
+
+  function showAddEventModal() {
+    qs('#event-form').reset();
+    openModal('#event-modal');
+  }
+  window.showAddEventModal = showAddEventModal;
+
+  qs('#event-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const title = qs('#event-title').value.trim();
+    const date = qs('#event-date').value;
+    const time = qs('#event-time').value;
+    const description = qs('#event-description').value.trim();
+    const commun = qs('#event-commun').checked;
+    const sections = Array.from(document.querySelectorAll('input[name="event-sections"]:checked')).map(x => x.value);
+    const all = getLocalEvents();
+    all.push({ id: Date.now(), title, date, time, description, commun, sections });
+    setLocalEvents(all);
+    hideAllModals();
+    renderCalendar();
+  });
+
+  // ====== Inventaire (local) ======
+  function getLocalItems() { try { return JSON.parse(localStorage.getItem('items') || '[]'); } catch { return []; } }
+  function setLocalItems(arr) { localStorage.setItem('items', JSON.stringify(arr)); }
+  function renderInventaire() {
+    const tbody = qs('#inventaire-tbody');
+    const items = getLocalItems();
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#666;">Aucun matériel (local)</td></tr>';
+    } else {
+      tbody.innerHTML = items.map(it => `
+        <tr>
+          <td>${escapeHtml(it.nom)}</td>
+          <td>${escapeHtml(it.categorie)}</td>
+          <td>${escapeHtml(String(it.qte))}</td>
+          <td>${escapeHtml(it.etat)}</td>
+          <td>${escapeHtml(it.loc)}</td>
+          <td>${escapeHtml(it.stat)}</td>
+          <td><button class="btn btn-danger btn-xs" data-action="del-item" data-id="${it.id}">Supprimer</button></td>
+        </tr>
+      `).join('');
+    }
+    const total = items.reduce((s,i)=>s+i.qte,0);
+    const borrowed = items.filter(i=>i.stat==='Emprunté').reduce((s,i)=>s+i.qte,0);
+    qs('#total-items').textContent = String(total);
+    qs('#borrowed-items').textContent = String(borrowed);
+    qs('#available-items').textContent = String(total - borrowed);
+  }
+
+  function showAddItemModal() {
+    qs('#item-form').reset();
+    openModal('#item-modal');
+  }
+  window.showAddItemModal = showAddItemModal;
+
+  qs('#item-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nom = qs('#item-nom').value.trim();
+    const categorie = qs('#item-category').value;
+    const qte = parseInt(qs('#item-quantity').value, 10);
+    const etat = qs('#item-etat').value;
+    const loc = qs('#item-location').value.trim();
+    const stat = 'Disponible';
+    const items = getLocalItems();
+    items.push({ id: Date.now(), nom, categorie, qte, etat, loc, stat });
+    setLocalItems(items);
+    hideAllModals();
+    renderInventaire();
+  });
+
+  document.body.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action="del-item"]');
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    const items = getLocalItems().filter(x => x.id !== id);
+    setLocalItems(items);
+    renderInventaire();
+  });
+
+  // ====== Section switcher ======
+  const sectionSelect = qs('#section-switcher');
+  sectionSelect.value = CURRENT_SECTION;
+  sectionSelect.addEventListener('change', () => {
+    CURRENT_SECTION = sectionSelect.value;
+    localStorage.setItem('current_section', CURRENT_SECTION);
+    renderCalendar();
+  });
+
+  // ====== Auth modals & actions ======
+  qs('#btn-login').addEventListener('click', () => openModal('#login-modal'));
+  qs('#btn-register').addEventListener('click', () => openModal('#register-modal'));
+  qs('#btn-logout').addEventListener('click', () => {
+    setToken('');
+    updateAuthUI(null);
+    refreshDashboard();
+  });
+
+  qs('#login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = qs('#login-email').value.trim();
+    const password = qs('#login-password').value;
+    try {
+      await login(email, password);
+      hideAllModals();
+      await refreshDashboard();
+      await loadTransactions();
+    } catch (err) {
+      alert('Connexion échouée: ' + (err.body && err.body.error ? err.body.error : err.status || err));
+    }
+  });
+
+  qs('#register-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    // Tentative d’endpoint courant; s’il n’existe pas, on affiche une alerte.
+    const payload = {
+      email: qs('#reg-email').value.trim(),
+      password: qs('#reg-password').value,
+      nom: qs('#reg-nom').value.trim(),
+      prenom: qs('#reg-prenom').value.trim(),
+      totem: qs('#reg-totem').value.trim(),
+      date_naissance: qs('#reg-date-naissance').value,
+      telephone: qs('#reg-telephone').value.trim(),
+      section: qs('#reg-section').value
+    };
+    try {
+      const ep = '/api/auth/register';
+      await req(ep, { method: 'POST', body: JSON.stringify(payload) });
+      hideAllModals();
+      alert('Demande de compte envoyée. En attente d’approbation.');
+    } catch (err) {
+      alert('Inscription indisponible sur cette instance.');
+    }
+  });
+
+  // ====== Utils ======
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function csvEscape(s) {
+    const v = String(s).replace(/"/g, '""');
+    return `"${v}"`;
+  }
+
+  // ====== Init ======
+  (async function init() {
+    initNavigation();
+    await fetchMe();          // met à jour l’UI selon la session
+    await refreshDashboard(); // finances du tableau de bord
+    if (location.hash === '#tresorerie') { await loadTransactions(); }
+    renderEnfants();
+    renderCalendar();
+    renderInventaire();
+  })();
+</script>
+</body>
+</html>

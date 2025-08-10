@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>ScoutDesk – Test Front</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 20px; }
+    fieldset { margin-bottom: 16px; }
+    button { margin: 4px 8px 4px 0; }
+    pre { background: #111; color: #0f0; padding: 10px; border-radius: 6px; max-height: 40vh; overflow: auto; }
+    .ok { color: #0a0; } .err { color: #a00; }
+    input { padding: 6px; margin: 4px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  </style>
+</head>
+<body>
+  <h1>Test Front minimal</h1>
+  <p>Backend attendu sur <code>http://localhost:3000</code></p>
+
+  <fieldset>
+    <legend>Connexion</legend>
+    <div class="row">
+      <input id="email" placeholder="Email" value="diegoclaes@gmail.com" />
+      <input id="password" placeholder="Mot de passe" type="password" value="Cookyetlola17" />
+      <button id="btnLogin">Login</button>
+      <span id="who" class="ok"></span>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Tests rapides</legend>
+    <div class="row">
+      <button data-action="health">GET /api/health</button>
+      <button data-action="me">GET /api/auth/me</button>
+      <button data-action="accounts">GET comptes</button>
+      <button data-action="categories">GET catégories</button>
+      <button data-action="income">+ Revenu Banque 1€ (Cotisation)</button>
+      <button data-action="expense">+ Dépense Caisse 1€ (Activité)</button>
+      <button data-action="listTx">Lister transactions</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Dettes & Cotisations (facultatif)</legend>
+    <div class="row">
+      <button data-action="createDebt">Créer dette chef (30€)</button>
+      <button data-action="listDebts">Lister dettes</button>
+      <input id="debtId" placeholder="ID dette à solder" style="width: 160px;" />
+      <button data-action="settleDebt">Solder dette (CASH)</button>
+    </div>
+    <div class="row">
+      <button data-action="assignAssu">Assigner Assurance 2025 (12.5€)</button>
+      <button data-action="assignCoti">Assigner Cotisation 2025 (50€)</button>
+      <input id="dueId" placeholder="ID due à payer" style="width: 160px;" />
+      <button data-action="payDue">Payer due (BANK)</button>
+    </div>
+  </fieldset>
+
+  <h3>Logs</h3>
+  <pre id="log"></pre>
+
+  <script>
+    const API_BASE = 'http://localhost:3000';
+    let TOKEN = localStorage.getItem('token') || '';
+
+    function setToken(t) {
+      TOKEN = t || '';
+      if (t) localStorage.setItem('token', t); else localStorage.removeItem('token');
+      document.getElementById('who').textContent = t ? 'Connecté' : '';
+    }
+
+    async function req(path, options = {}) {
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      if (TOKEN) headers.Authorization = 'Bearer ' + TOKEN;
+      const res = await fetch(API_BASE + path, { ...options, headers });
+      const text = await res.text();
+      let body; try { body = text ? JSON.parse(text) : {}; } catch { body = text; }
+      if (!res.ok) { throw { status: res.status, body }; }
+      return body;
+    }
+
+    function log(...args) {
+      const el = document.getElementById('log');
+      el.textContent += args.map(a => (typeof a === 'string' ? a : JSON.stringify(a, null, 2))).join(' ') + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+
+    async function login(email, password) {
+      const data = await req('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+      setToken(data.token);
+      log('Login OK:', data.user.email, '(role:', data.user.role + ')');
+      return data.user;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (TOKEN) document.getElementById('who').textContent = 'Connecté';
+      document.getElementById('btnLogin').addEventListener('click', async () => {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        try { await login(email, password); } catch (e) { log('Login ERR:', e.status, e.body); }
+      });
+
+      document.body.addEventListener('click', async (e) => {
+        if (!e.target.matches('button[data-action]')) return;
+        const act = e.target.dataset.action;
+        try {
+          if (act === 'health') {
+            const r = await req('/api/health');
+            log('health:', r);
+          } else if (act === 'me') {
+            const r = await req('/api/auth/me');
+            log('me:', r);
+          } else if (act === 'accounts') {
+            const r = await req('/api/finance/accounts');
+            log('comptes:', r);
+          } else if (act === 'categories') {
+            const r = await req('/api/finance/categories');
+            log('cats:', r);
+          } else if (act === 'income') {
+            const r = await req('/api/finance/transactions', {
+              method: 'POST',
+              body: JSON.stringify({
+                date: '2025-09-02',
+                amount: 1,
+                kind: 'INCOME',
+                method: 'BANK',
+                category_name: 'Cotisation',
+                description: 'Test revenu 1€'
+              })
+            });
+            log('income OK:', r);
+          } else if (act === 'expense') {
+            const r = await req('/api/finance/transactions', {
+              method: 'POST',
+              body: JSON.stringify({
+                date: '2025-09-03',
+                amount: 1,
+                kind: 'EXPENSE',
+                method: 'CASH',
+                category_name: 'Activité',
+                description: 'Test dépense 1€'
+              })
+            });
+            log('expense OK:', r);
+          } else if (act === 'listTx') {
+            const r = await req('/api/finance/transactions?limit=10');
+            log('tx:', r);
+          } else if (act === 'createDebt') {
+            const r = await req('/api/finance/transactions', {
+              method: 'POST',
+              body: JSON.stringify({
+                date: '2025-09-04',
+                amount: 30,
+                kind: 'EXPENSE',
+                method: 'BANK',
+                category_name: 'Activité',
+                chef_id: 1,
+                create_debt: true,
+                debt_reason: 'Avance inscription'
+              })
+            });
+            log('dépense+ dette OK:', r);
+          } else if (act === 'listDebts') {
+            const r = await req('/api/finance/debts?status=OPEN');
+            log('dettes:', r);
+          } else if (act === 'settleDebt') {
+            const id = document.getElementById('debtId').value.trim();
+            if (!id) return alert('Renseigne un ID de dette');
+            const r = await req(`/api/finance/debts/${id}/settle`, {
+              method: 'POST',
+              body: JSON.stringify({ date: '2025-09-05', method: 'CASH', description: 'Règlement test' })
+            });
+            log('dette soldée:', r);
+          } else if (act === 'assignAssu') {
+            const r = await req('/api/dues/assignments/bulk', {
+              method: 'POST',
+              body: JSON.stringify({ person_type: 'CHEF', person_ids: [1], type: 'ASSURANCE', scope: 'UNIT', year: 2025, amount: 12.5 })
+            });
+            log('assign ASSU:', r);
+          } else if (act === 'assignCoti') {
+            const r = await req('/api/dues/assignments/bulk', {
+              method: 'POST',
+              body: JSON.stringify({ person_type: 'CHEF', person_ids: [1], type: 'COTISATION', scope: 'SECTION', year: 2025, amount: 50 })
+            });
+            log('assign COTI:', r);
+          } else if (act === 'payDue') {
+            const id = document.getElementById('dueId').value.trim();
+            if (!id) return alert('Renseigne un ID de due');
+            const r = await req(`/api/dues/assignments/${id}/pay`, {
+              method: 'PATCH',
+              body: JSON.stringify({ method: 'BANK', date: '2025-09-06' })
+            });
+            log('due payée:', r);
+          }
+        } catch (e) {
+          log('ERR:', e.status || '', e.body || e);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

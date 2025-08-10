@@ -16,7 +16,8 @@
       <div class="context-item">
         <span id="auth-status">Non connecté</span>
         <button class="btn btn-secondary" id="btn-login">Se connecter</button>
-        <button class="btn btn-primary" id="btn-register">Créer un compte</button>
+        <!-- L'inscription libre est désactivée car /api/auth/register retourne 404 -->
+        <button class="btn btn-primary" id="btn-register" style="display:none;">Créer un compte</button>
         <button class="btn btn-danger" id="btn-logout" style="display:none;">Se déconnecter</button>
       </div>
       <div class="context-item" id="section-switcher-wrap" style="display:none;">
@@ -52,23 +53,24 @@
       </div>
       <div class="dashboard-grid">
         <div class="card">
-          <h3><i class="fas fa-euro-sign"></i> Finances</h3>
-          <p class="stat-number" id="budget-total">€0</p>
-          <p>Budget disponible</p>
+          <h3><i class="fas fa-wallet"></i> Banque</h3>
+          <p class="stat-number" id="balance-banque">€0</p>
+          <p>Solde compte bancaire</p>
         </div>
         <div class="card">
-          <h3><i class="fas fa-users"></i> Chefs</h3>
-          <p class="stat-number" id="chefs-count">—</p>
-          <p>Chefs actifs</p>
+          <h3><i class="fas fa-coins"></i> Caisse</h3>
+          <p class="stat-number" id="balance-caisse">€0</p>
+          <p>Solde espèces</p>
         </div>
         <div class="card">
-          <h3><i class="fas fa-child"></i> Enfants</h3>
-          <p class="stat-number" id="enfants-count">—</p>
-          <p>Scouts inscrits</p>
+          <h3><i class="fas fa-sack-dollar"></i> Argent total</h3>
+          <p class="stat-number" id="argent-total">€0</p>
+          <p>Banque + Caisse</p>
         </div>
         <div class="card">
-          <h3><i class="fas fa-calendar"></i> Prochaine activité</h3>
-          <p class="stat-text" id="next-activity">Aucune planifiée</p>
+          <h3><i class="fas fa-hand-holding-dollar"></i> Dettes</h3>
+          <p class="stat-number" id="dettes-total">€0</p>
+          <p>Dettes ouvertes</p>
         </div>
       </div>
     </section>
@@ -82,12 +84,12 @@
       <div class="finance-summary">
         <div class="summary-card positive"><h4>Recettes</h4><span id="total-recettes">€0</span></div>
         <div class="summary-card negative"><h4>Dépenses</h4><span id="total-depenses">€0</span></div>
-        <div class="summary-card"><h4>Solde</h4><span id="solde-total">€0</span></div>
+        <div class="summary-card"><h4>Solde période</h4><span id="solde-total">€0</span></div>
       </div>
       <div class="table-container">
         <table id="transactions-table">
-          <thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Montant</th><th>Actions</th></tr></thead>
-          <tbody id="transactions-tbody"></tbody>
+          <thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Méthode</th><th>Montant</th><th>Actions</th></tr></thead>
+        <tbody id="transactions-tbody"></tbody>
         </table>
       </div>
     </section>
@@ -96,8 +98,12 @@
       <h2>Listing des Chefs</h2>
       <div class="table-container">
         <table id="chefs-table">
-          <thead><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Téléphone</th><th>Section</th><th>Statut</th><th>Actions</th></tr></thead>
-          <tbody id="chefs-tbody"><tr><td colspan="7" style="text-align:center;color:#666;">Chargement…</td></tr></tbody>
+          <thead>
+            <tr>
+              <th>Nom</th><th>Prénom</th><th>Email</th><th>Téléphone</th><th>Section</th><th>Rôle</th><th>Dette totale</th><th>Statut</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="chefs-tbody"><tr><td colspan="9" style="text-align:center;color:#666;">Chargement…</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -116,8 +122,8 @@
       </div>
       <div class="table-container">
         <table id="enfants-table">
-          <thead><tr><th>Nom</th><th>Prénom</th><th>Âge</th><th>Section</th><th>Parent/Contact</th><th>Téléphone</th><th>Actions</th></tr></thead>
-          <tbody id="enfants-tbody"><tr><td colspan="7" style="text-align:center;color:#666;">Aucun enfant (local)</td></tr></tbody>
+          <thead><tr><th>Nom</th><th>Prénom</th><th>Âge</th><th>Section</th><th>Parent/Contact</th><th>Téléphone</th><th>Assurance</th><th>Cotisation</th><th>Actions</th></tr></thead>
+          <tbody id="enfants-tbody"><tr><td colspan="9" style="text-align:center;color:#666;">Aucun enfant (local)</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -197,7 +203,7 @@
   </main>
 </div>
 
-<!-- Modals -->
+<!-- Overlay -->
 <div id="modal-overlay" class="modal-overlay" onclick="closeModal()"></div>
 
 <!-- Auth: Login -->
@@ -213,28 +219,15 @@
   </div>
 </div>
 
-<!-- Auth: Register -->
+<!-- Auth: Register (désactivé) -->
 <div id="register-modal" class="modal">
   <div class="modal-content">
     <span class="close" onclick="closeModal()">&times;</span>
     <h3>Créer un compte</h3>
-    <form id="register-form">
-      <input type="email" id="reg-email" placeholder="Email" required/>
-      <input type="password" id="reg-password" placeholder="Mot de passe" required/>
-      <input type="text" id="reg-nom" placeholder="Nom" required/>
-      <input type="text" id="reg-prenom" placeholder="Prénom" required/>
-      <input type="text" id="reg-totem" placeholder="Totem (optionnel)"/>
-      <input type="date" id="reg-date-naissance" placeholder="Date de naissance" required/>
-      <input type="tel" id="reg-telephone" placeholder="Téléphone" required/>
-      <select id="reg-section" required>
-        <option value="">Section</option>
-        <option value="Castors">Castors</option>
-        <option value="Louveteaux">Louveteaux</option>
-        <option value="Éclaireurs">Éclaireurs</option>
-        <option value="Pionniers">Pionniers</option>
-      </select>
-      <button type="submit" class="btn btn-primary">Demander un compte</button>
-    </form>
+    <p style="color:#a00; margin: 8px 0;">
+      L’inscription libre est désactivée sur ce serveur (endpoint /api/auth/register absent).
+      Merci de contacter un administrateur pour créer votre compte.
+    </p>
   </div>
 </div>
 
@@ -246,14 +239,38 @@
     <form id="transaction-form">
       <input type="date" id="transaction-date" required>
       <input type="text" id="transaction-description" placeholder="Description" required>
-      <select id="transaction-type" required>
-        <option value="">Type de transaction</option>
-        <option value="recette">Recette</option>
-        <option value="depense">Dépense</option>
-      </select>
+      <div class="row">
+        <select id="transaction-type" required>
+          <option value="">Type de transaction</option>
+          <option value="recette">Recette</option>
+          <option value="depense">Dépense</option>
+        </select>
+        <select id="transaction-method" required>
+          <option value="">Compte/méthode</option>
+          <option value="BANK">Banque</option>
+          <option value="CASH">Caisse (espèces)</option>
+        </select>
+        <select id="transaction-category" required>
+          <option value="">Catégorie</option>
+          <option value="Cotisation">Cotisation</option>
+          <option value="Assurance">Assurance</option>
+          <option value="Activité">Activité</option>
+          <option value="Matériel">Matériel</option>
+          <option value="Divers">Divers</option>
+        </select>
+      </div>
       <input type="number" id="transaction-amount" placeholder="Montant (€)" step="0.01" required>
       <button type="submit" class="btn btn-primary">Ajouter</button>
     </form>
+  </div>
+</div>
+
+<!-- Transaction Detail Modal -->
+<div id="tx-detail-modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3>Détails de la transaction</h3>
+    <div id="tx-detail-body" style="line-height:1.7;"></div>
   </div>
 </div>
 
@@ -341,6 +358,7 @@
   let TOKEN = localStorage.getItem('token') || '';
   let CURRENT_USER = null;
   let CURRENT_SECTION = localStorage.getItem('current_section') || 'Castors';
+  let LAST_TX_CACHE = [];
 
   function setToken(token) {
     TOKEN = token || '';
@@ -354,35 +372,25 @@
     const text = await res.text();
     let body; try { body = text ? JSON.parse(text) : {}; } catch { body = text; }
     if (!res.ok) {
-      if (res.status === 401) {
-        updateAuthUI(null);
-      }
-      throw { status: res.status, body };
+      if (res.status === 401) { updateAuthUI(null); }
+      const err = body && body.error ? body.error : (res.status + ' ' + res.statusText);
+      throw { status: res.status, body, message: err };
     }
     return body;
   }
 
   // ====== UI helpers ======
-  function euro(amount) {
-    // amount can be euros or cents based on API object
-    const cents = Math.abs(amount) < 5 && String(amount).includes('.') ? Math.round(amount * 100) : Math.round(amount);
-    return (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
-  }
-
+  function euroCents(cents) { return (Math.round(cents||0)/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'}); }
+  function euro(amount) { const cents = Math.abs(amount) < 5 && String(amount).includes('.') ? Math.round(amount * 100) : Math.round(amount); return euroCents(cents); }
   function qs(s, root = document) { return root.querySelector(s); }
   function qsa(s, root = document) { return Array.from(root.querySelectorAll(s)); }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function csvEscape(s) { const v = String(s).replace(/"/g, '""'); return '"' + v + '"'; }
 
   // ====== Modals ======
   const overlay = () => qs('#modal-overlay');
-  function openModal(id) {
-    overlay().style.display = 'block';
-    const m = qs(id);
-    if (m) m.style.display = 'block';
-  }
-  function hideAllModals() {
-    qsa('.modal').forEach(m => m.style.display = 'none');
-    overlay().style.display = 'none';
-  }
+  function openModal(id) { overlay().style.display = 'block'; const m = qs(id); if (m) m.style.display = 'block'; }
+  function hideAllModals() { qsa('.modal').forEach(m => m.style.display = 'none'); overlay().style.display = 'none'; }
   function closeModal() { hideAllModals(); }
   window.closeModal = closeModal;
 
@@ -398,10 +406,12 @@
     const navAdmin = qs('#nav-admin');
     const approvalWarning = qs('#approval-warning');
 
+    // Inscription libre masquée (endpoint absent)
+    btnRegister.style.display = 'none';
+
     if (user) {
       authStatus.textContent = `Connecté: ${user.email} (${user.role})`;
       btnLogin.style.display = 'none';
-      btnRegister.style.display = 'none';
       btnLogout.style.display = 'inline-block';
       sectionWrap.style.display = 'flex';
       navAdmin.style.display = (user.role === 'SUPERADMIN') ? 'inline-block' : 'none';
@@ -410,7 +420,6 @@
     } else {
       authStatus.textContent = 'Non connecté';
       btnLogin.style.display = 'inline-block';
-      btnRegister.style.display = 'inline-block';
       btnLogout.style.display = 'none';
       sectionWrap.style.display = 'none';
       navAdmin.style.display = 'none';
@@ -420,14 +429,8 @@
   }
 
   async function fetchMe() {
-    try {
-      const me = await req('/api/auth/me');
-      updateAuthUI(me);
-      return me;
-    } catch {
-      updateAuthUI(null);
-      return null;
-    }
+    try { const me = await req('/api/auth/me'); updateAuthUI(me); return me; }
+    catch { updateAuthUI(null); return null; }
   }
 
   async function login(email, password) {
@@ -447,95 +450,98 @@
 
   function initNavigation() {
     document.body.addEventListener('click', (e) => {
-      const link = e.target.closest('.nav-link');
-      if (!link) return;
+      const link = e.target.closest('.nav-link'); if (!link) return;
       e.preventDefault();
       const id = link.getAttribute('href');
       history.replaceState(null, '', id);
       showModule(id);
-      // Lazy-load section data
       if (id === '#tresorerie') loadTransactions();
       if (id === '#chefs') loadChefs();
       if (id === '#enfants') renderEnfants();
-      if (id === '#planning') renderCalendar(); // refresh view
+      if (id === '#planning') renderCalendar();
       if (id === '#inventaire') renderInventaire();
     });
-
-    // On load via hash
-    const initial = location.hash || '#dashboard';
-    showModule(initial);
+    showModule(location.hash || '#dashboard');
   }
 
-  // ====== Dashboard (basique) ======
+  // ====== Dashboard ======
   async function refreshDashboard() {
-    // Budget via /api/finance/accounts
     try {
       const accounts = await req('/api/finance/accounts');
-      const totalCents = (accounts || []).reduce((sum, a) => sum + (a.balance_cents || 0), 0);
-      qs('#budget-total').textContent = euro(totalCents);
+      let banque = 0, caisse = 0;
+      (accounts || []).forEach(a => {
+        if (a.kind === 'BANK') banque = a.balance_cents || 0;
+        if (a.kind === 'CASH') caisse = a.balance_cents || 0;
+      });
+      qs('#balance-banque').textContent = euroCents(banque);
+      qs('#balance-caisse').textContent = euroCents(caisse);
+      qs('#argent-total').textContent = euroCents(banque + caisse);
     } catch {
-      qs('#budget-total').textContent = '€0';
+      qs('#balance-banque').textContent = '€0';
+      qs('#balance-caisse').textContent = '€0';
+      qs('#argent-total').textContent = '€0';
     }
-    // Les autres stats restent placeholders si pas d’API dédiée
+
+    try {
+      const debts = await req('/api/finance/debts?status=OPEN');
+      const totalDettesCents = (Array.isArray(debts) ? debts : (debts.items || [])).reduce((s,d)=> s + (d.amount_cents || Math.round((d.amount||0)*100)), 0);
+      qs('#dettes-total').textContent = euroCents(totalDettesCents);
+    } catch {
+      qs('#dettes-total').textContent = '€0';
+    }
   }
 
   // ====== Trésorerie ======
   async function loadTransactions() {
     const tbody = qs('#transactions-tbody');
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;">Chargement…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666;">Chargement…</td></tr>';
     try {
-      const res = await req('/api/finance/transactions?limit=100');
+      const res = await req('/api/finance/transactions?limit=200');
       const txs = Array.isArray(res) ? res : (res.items || []);
+      LAST_TX_CACHE = txs;
       if (!txs.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;">Aucune transaction</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666;">Aucune transaction</td></tr>';
       } else {
         tbody.innerHTML = txs.map(t => {
           const date = t.date || (t.created_at || '').slice(0,10);
           const desc = t.description || t.category_name || '—';
-          // Try to infer kind and amount
           const amountCents = typeof t.amount_cents === 'number' ? t.amount_cents : (typeof t.amount === 'number' ? Math.round(t.amount * 100) : 0);
-          const kind = t.kind || (amountCents >= 0 ? 'INCOME' : 'EXPENSE');
-          const amountTxt = euro(Math.abs(amountCents));
+          const kind = (t.kind || '').toUpperCase();
+          const method = t.method || '';
           const sign = (kind === 'EXPENSE' || amountCents < 0) ? '-' : '+';
-          const typeTxt = (kind === 'INCOME' ? 'Recette' : 'Dépense');
           return `<tr>
             <td>${date || ''}</td>
             <td>${escapeHtml(desc)}</td>
-            <td>${typeTxt}</td>
-            <td class="${sign==='+'?'positive':'negative'}">${sign} ${amountTxt}</td>
+            <td>${kind === 'INCOME' ? 'Recette' : 'Dépense'}</td>
+            <td>${method === 'BANK' ? 'Banque' : method === 'CASH' ? 'Caisse' : escapeHtml(method || '')}</td>
+            <td class="${sign==='+'?'positive':'negative'}">${sign} ${euroCents(Math.abs(amountCents))}</td>
             <td><button class="btn btn-secondary btn-xs" data-action="tx-details" data-id="${t.id || ''}">Détails</button></td>
           </tr>`;
         }).join('');
       }
       // Summary
-      let recettes = 0, depenses = 0;
-      qsa('#transactions-tbody tr').forEach(tr => {
-        const td = tr.children[3]; if (!td) return;
-        const isPos = td.classList.contains('positive');
-        const val = parseFloat(td.textContent.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
-        if (isPos) recettes += val; else depenses += val;
+      let recettesC = 0, depensesC = 0;
+      txs.forEach(t => {
+        const amountCents = typeof t.amount_cents === 'number' ? t.amount_cents : (typeof t.amount === 'number' ? Math.round(t.amount * 100) : 0);
+        if ((t.kind || '').toUpperCase() === 'INCOME' || amountCents > 0) recettesC += Math.abs(amountCents);
+        else depensesC += Math.abs(amountCents);
       });
-      // Convert back to cents for display formatting
-      qs('#total-recettes').textContent = recettes.toLocaleString('fr-FR', { style:'currency', currency:'EUR' });
-      qs('#total-depenses').textContent = depenses.toLocaleString('fr-FR', { style:'currency', currency:'EUR' });
-      const solde = recettes - depenses;
-      qs('#solde-total').textContent = solde.toLocaleString('fr-FR', { style:'currency', currency:'EUR' });
+      qs('#total-recettes').textContent = euroCents(recettesC);
+      qs('#total-depenses').textContent = euroCents(depensesC);
+      qs('#solde-total').textContent = euroCents(recettesC - depensesC);
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#a00;">Erreur: ${escapeHtml(JSON.stringify(e.body || e))}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#a00;">Erreur: ${escapeHtml(e.message || JSON.stringify(e.body || e))}</td></tr>`;
     }
   }
 
   function showAddTransactionModal() {
-    const form = qs('#transaction-form');
-    form.reset();
-    const today = new Date().toISOString().slice(0,10);
-    qs('#transaction-date').value = today;
+    qs('#transaction-form').reset();
+    qs('#transaction-date').value = new Date().toISOString().slice(0,10);
     openModal('#transaction-modal');
   }
   window.showAddTransactionModal = showAddTransactionModal;
 
   function exportFinances() {
-    // Export CSV des transactions
     (async () => {
       try {
         const res = await req('/api/finance/transactions?limit=1000');
@@ -571,22 +577,21 @@
     const date = qs('#transaction-date').value;
     const desc = qs('#transaction-description').value.trim();
     const type = qs('#transaction-type').value;
+    const method = qs('#transaction-method').value;
+    const category = qs('#transaction-category').value;
     const amountEur = parseFloat(qs('#transaction-amount').value);
-    if (!date || !desc || !type || isNaN(amountEur)) return;
+    if (!date || !desc || !type || !method || !category || isNaN(amountEur)) return;
 
     const payload = {
       date,
       amount: amountEur,
       kind: type === 'recette' ? 'INCOME' : 'EXPENSE',
-      method: type === 'recette' ? 'BANK' : 'CASH',
-      category_name: type === 'recette' ? 'Cotisation' : 'Activité',
+      method, // BANK ou CASH
+      category_name: category,
       description: desc
     };
     try {
-      await req('/api/finance/transactions', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      await req('/api/finance/transactions', { method: 'POST', body: JSON.stringify(payload) });
       hideAllModals();
       await loadTransactions();
       await refreshDashboard();
@@ -595,55 +600,170 @@
     }
   });
 
-  // ====== Chefs (meilleur effort: endpoint peut varier) ======
+  // Détails transaction
+  document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action="tx-details"]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    let t = LAST_TX_CACHE.find(x => String(x.id) === String(id));
+    try {
+      const fetched = await req(`/api/finance/transactions/${id}`);
+      if (fetched && fetched.id) t = fetched;
+    } catch {}
+    if (!t) return alert("Transaction introuvable");
+    const amountCents = typeof t.amount_cents === 'number' ? t.amount_cents : (typeof t.amount === 'number' ? Math.round(t.amount * 100) : 0);
+    const body = `
+      <div><strong>ID:</strong> ${escapeHtml(String(t.id||''))}</div>
+      <div><strong>Date:</strong> ${escapeHtml((t.date || (t.created_at||'').slice(0,10)) || '')}</div>
+      <div><strong>Type:</strong> ${(t.kind||'').toUpperCase()==='INCOME' ? 'Recette' : 'Dépense'}</div>
+      <div><strong>Méthode:</strong> ${t.method==='BANK'?'Banque':t.method==='CASH'?'Caisse':escapeHtml(t.method||'')}</div>
+      <div><strong>Catégorie:</strong> ${escapeHtml(t.category_name||'')}</div>
+      <div><strong>Montant:</strong> ${euroCents(Math.abs(amountCents))} ${amountCents<0?'(sortie)':'(entrée)'}</div>
+      ${t.chef_id?`<div><strong>Chef associé:</strong> #${escapeHtml(String(t.chef_id))}</div>`:''}
+      ${t.linked_debt_id?`<div><strong>Dette liée:</strong> #${escapeHtml(String(t.linked_debt_id))}</div>`:''}
+      <div><strong>Description:</strong> ${escapeHtml(t.description||'')}</div>
+    `;
+    qs('#tx-detail-body').innerHTML = body;
+    openModal('#tx-detail-modal');
+  });
+
+  // ====== Chefs ======
   async function loadChefs() {
     const tbody = qs('#chefs-tbody');
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#666;">Chargement…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#666;">Chargement…</td></tr>';
     try {
-      // Essais d’endpoints possibles
-      const endpoints = ['/api/chefs', '/api/users?role=CHEF', '/api/staff'];
-      let data = null, lastErr = null;
+      // Dettes ouvertes -> total par chef
+      let debtsByChef = {};
+      try {
+        const debts = await req('/api/finance/debts?status=OPEN');
+        const listD = Array.isArray(debts) ? debts : (debts.items || []);
+        debtsByChef = listD.reduce((m, d) => {
+          const chefId = d.chef_id || d.person_id || d.user_id;
+          const cents = d.amount_cents || Math.round((d.amount||0)*100);
+          if (chefId) m[chefId] = (m[chefId] || 0) + cents;
+          return m;
+        }, {});
+      } catch {}
+
+      // Récupération des utilisateurs (chefs)
+      const endpoints = ['/api/users', '/api/admin/users', '/api/staff'];
+      let data = null;
       for (const ep of endpoints) {
-        try { data = await req(ep); if (data) { data._ep = ep; break; } } catch (e) { lastErr = e; }
+        try { data = await req(ep); if (data) { data._ep = ep; break; } } catch {}
       }
       const list = Array.isArray(data) ? data : (data && data.items ? data.items : []);
       if (!list.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#666;">Aucun chef trouvé</td></tr>`;
-      } else {
-        tbody.innerHTML = list.map(u => {
-          return `<tr>
-            <td>${escapeHtml(u.nom || u.last_name || '')}</td>
-            <td>${escapeHtml(u.prenom || u.first_name || '')}</td>
-            <td>${escapeHtml(u.email || '')}</td>
-            <td>${escapeHtml(u.telephone || u.phone || '')}</td>
-            <td>${escapeHtml(u.section || u.section_name || '')}</td>
-            <td>${escapeHtml(u.status || '')}</td>
-            <td><button class="btn btn-secondary btn-xs" disabled>—</button></td>
-          </tr>`;
-        }).join('');
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#666;">Aucun chef trouvé</td></tr>`;
+        qs('#chefs-count').textContent = '0';
+        return;
       }
-      qs('#chefs-count').textContent = String(list.length);
+      // Option: filtrer aux rôles “staff”
+      const staffRoles = new Set(['CHEF','CHEF_SECTION','CHEF_UNITE','TRESORIER','SUPERADMIN']);
+      const filtered = list.filter(u => staffRoles.has(String(u.role||'').toUpperCase()) || (u.is_staff === true));
+
+      tbody.innerHTML = (filtered.length ? filtered : list).map(u => {
+        const id = u.id || u.user_id;
+        const role = (u.role||'').toUpperCase();
+        const detteCents = debtsByChef[id] || 0;
+        return `<tr data-user-id="${id}">
+          <td>${escapeHtml(u.nom || u.last_name || '')}</td>
+          <td>${escapeHtml(u.prenom || u.first_name || '')}</td>
+          <td>${escapeHtml(u.email || '')}</td>
+          <td>${escapeHtml(u.telephone || u.phone || '')}</td>
+          <td>${escapeHtml(u.section || u.section_name || '')}</td>
+          <td>
+            <select class="role-select">
+              ${['CHEF','CHEF_SECTION','CHEF_UNITE','TRESORIER','SUPERADMIN'].map(r => `<option value="${r}" ${role===r?'selected':''}>${r}</option>`).join('')}
+            </select>
+          </td>
+          <td>${euroCents(detteCents)}</td>
+          <td>${escapeHtml(u.status || '')}</td>
+          <td>
+            <button class="btn btn-primary btn-xs" data-action="save-role">Enregistrer</button>
+            ${u.status && u.status !== 'APPROVED' ? '<button class="btn btn-secondary btn-xs" data-action="approve-user">Approuver</button>' : ''}
+          </td>
+        </tr>`;
+      }).join('');
+      qs('#chefs-count').textContent = String((filtered.length || list.length));
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#a00;">Erreur chargement chefs</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#a00;">Erreur chargement chefs</td></tr>`;
     }
   }
 
-  // ====== Enfants (stockage local pour démo) ======
-  function getLocalEnfants() {
-    try { return JSON.parse(localStorage.getItem('enfants') || '[]'); } catch { return []; }
+  // Actions Chefs: enregistrer rôle / approuver
+  document.body.addEventListener('click', async (e) => {
+    const row = e.target.closest('#chefs-tbody tr');
+    if (!row) return;
+
+    if (e.target.closest('button[data-action="save-role"]')) {
+      const userId = row.getAttribute('data-user-id');
+      const role = row.querySelector('.role-select').value;
+      try {
+        await updateUserRole(userId, role);
+        alert('Rôle mis à jour');
+      } catch (err) {
+        alert('Maj rôle impossible: ' + (err.message || err.status || ''));
+      }
+      return;
+    }
+
+    if (e.target.closest('button[data-action="approve-user"]')) {
+      const userId = row.getAttribute('data-user-id');
+      try {
+        await approveUser(userId);
+        alert('Utilisateur approuvé');
+        loadChefs();
+      } catch (err) {
+        alert('Approbation impossible: ' + (err.message || err.status || ''));
+      }
+      return;
+    }
+  });
+
+  async function updateUserRole(userId, role) {
+    const tries = [
+      { ep: `/api/users/${userId}`, method: 'PATCH', body: { role } },
+      { ep: `/api/admin/users/${userId}`, method: 'PATCH', body: { role } },
+      { ep: `/api/users/${userId}/role`, method: 'PATCH', body: { role } },
+    ];
+    let lastErr;
+    for (const t of tries) {
+      try { return await req(t.ep, { method: t.method, body: JSON.stringify(t.body) }); } catch (e) { lastErr = e; }
+    }
+    throw lastErr || new Error('Aucun endpoint rôle valide');
   }
-  function setLocalEnfants(arr) {
-    localStorage.setItem('enfants', JSON.stringify(arr));
+
+  async function approveUser(userId) {
+    const tries = [
+      { ep: `/api/users/${userId}`, method: 'PATCH', body: { status: 'APPROVED' } },
+      { ep: `/api/admin/users/${userId}`, method: 'PATCH', body: { status: 'APPROVED' } },
+      { ep: `/api/admin/users/${userId}/approve`, method: 'POST', body: {} },
+    ];
+    let lastErr;
+    for (const t of tries) {
+      try { return await req(t.ep, { method: t.method, body: JSON.stringify(t.body) }); } catch (e) { lastErr = e; }
+    }
+    throw lastErr || new Error('Aucun endpoint approbation valide');
   }
+
+  // ====== Enfants (local) + paiements Assurance/Cotisation (local) ======
+  function getLocalEnfants() { try { return JSON.parse(localStorage.getItem('enfants') || '[]'); } catch { return []; } }
+  function setLocalEnfants(arr) { localStorage.setItem('enfants', JSON.stringify(arr)); }
+  function getLocalPayments() { try { return JSON.parse(localStorage.getItem('enfants_pay') || '{}'); } catch { return {}; } }
+  function setLocalPayments(obj) { localStorage.setItem('enfants_pay', JSON.stringify(obj)); }
+
   function renderEnfants() {
     const section = qs('#filter-section').value;
     const all = getLocalEnfants();
+    const pays = getLocalPayments();
     const list = all.filter(e => !section || e.section === section);
     const tbody = qs('#enfants-tbody');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#666;">Aucun enfant (local)</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#666;">Aucun enfant (local)</td></tr>';
     } else {
-      tbody.innerHTML = list.map(e => `
+      tbody.innerHTML = list.map(e => {
+        const pay = pays[e.id] || { assurance:false, cotisation:false };
+        return `
         <tr>
           <td>${escapeHtml(e.nom)}</td>
           <td>${escapeHtml(e.prenom)}</td>
@@ -651,16 +771,15 @@
           <td>${escapeHtml(e.section)}</td>
           <td>${escapeHtml(e.parent)}</td>
           <td>${escapeHtml(e.tel)}</td>
+          <td><button class="btn btn-${pay.assurance?'primary':'secondary'} btn-xs" data-action="toggle-assu" data-id="${e.id}">${pay.assurance?'Payée':'Marquer payée'}</button></td>
+          <td><button class="btn btn-${pay.cotisation?'primary':'secondary'} btn-xs" data-action="toggle-coti" data-id="${e.id}">${pay.cotisation?'Payée':'Marquer payée'}</button></td>
           <td><button class="btn btn-danger btn-xs" data-action="del-enfant" data-id="${e.id}">Supprimer</button></td>
-        </tr>
-      `).join('');
+        </tr>`;
+      }).join('');
     }
     qs('#enfants-count').textContent = String(all.length);
   }
-  function showAddEnfantModal() {
-    qs('#enfant-form').reset();
-    openModal('#enfant-modal');
-  }
+  function showAddEnfantModal() { qs('#enfant-form').reset(); openModal('#enfant-modal'); }
   window.showAddEnfantModal = showAddEnfantModal;
   function filterEnfantsBySection() { renderEnfants(); }
   window.filterEnfantsBySection = filterEnfantsBySection;
@@ -681,12 +800,33 @@
   });
 
   document.body.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-action="del-enfant"]');
-    if (!btn) return;
-    const id = Number(btn.dataset.id);
-    const all = getLocalEnfants().filter(x => x.id !== id);
-    setLocalEnfants(all);
-    renderEnfants();
+    // enfants actions
+    const delBtn = e.target.closest('button[data-action="del-enfant"]');
+    const assuBtn = e.target.closest('button[data-action="toggle-assu"]');
+    const cotiBtn = e.target.closest('button[data-action="toggle-coti"]');
+    if (delBtn) {
+      const id = Number(delBtn.dataset.id);
+      const all = getLocalEnfants().filter(x => x.id !== id);
+      setLocalEnfants(all);
+      const pays = getLocalPayments(); delete pays[id]; setLocalPayments(pays);
+      renderEnfants();
+    }
+    if (assuBtn) {
+      const id = assuBtn.dataset.id;
+      const pays = getLocalPayments();
+      pays[id] = pays[id] || { assurance:false, cotisation:false };
+      pays[id].assurance = !pays[id].assurance;
+      setLocalPayments(pays);
+      renderEnfants();
+    }
+    if (cotiBtn) {
+      const id = cotiBtn.dataset.id;
+      const pays = getLocalPayments();
+      pays[id] = pays[id] || { assurance:false, cotisation:false };
+      pays[id].cotisation = !pays[id].cotisation;
+      setLocalPayments(pays);
+      renderEnfants();
+    }
   });
 
   // ====== Planning (local) ======
@@ -704,33 +844,15 @@
 
     const events = getLocalEvents();
     grid.innerHTML = '';
-    // headers
     const names = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-    names.forEach(n => {
-      const h = document.createElement('div');
-      h.className = 'calendar-day header';
-      h.textContent = n;
-      grid.appendChild(h);
-    });
-    // blanks
-    for (let i = 0; i < startDay; i++) {
-      const blank = document.createElement('div');
-      blank.className = 'calendar-day blank';
-      grid.appendChild(blank);
-    }
-    // days
+    names.forEach(n => { const h = document.createElement('div'); h.className = 'calendar-day header'; h.textContent = n; grid.appendChild(h); });
+    for (let i = 0; i < startDay; i++) { const blank = document.createElement('div'); blank.className = 'calendar-day blank'; grid.appendChild(blank); }
     for (let d = 1; d <= days; d++) {
-      const cell = document.createElement('div');
-      cell.className = 'calendar-day';
+      const cell = document.createElement('div'); cell.className = 'calendar-day';
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       cell.innerHTML = `<div class="date">${d}</div>`;
       const evts = events.filter(ev => ev.date === dateStr && eventMatchesFilter(ev));
-      evts.forEach(ev => {
-        const tag = document.createElement('div');
-        tag.className = 'event-tag';
-        tag.textContent = ev.title;
-        cell.appendChild(tag);
-      });
+      evts.forEach(ev => { const tag = document.createElement('div'); tag.className = 'event-tag'; tag.textContent = ev.title; cell.appendChild(tag); });
       grid.appendChild(cell);
     }
     renderEventsList();
@@ -738,19 +860,15 @@
   function switchPlanningView(view, btn) {
     qsa('.planning-view').forEach(v => v.classList.remove('active'));
     qsa('.tab-button').forEach(b => b.classList.remove('active'));
-    if (view === 'calendar') qs('#calendar-view').classList.add('active');
-    else qs('#list-view').classList.add('active');
+    if (view === 'calendar') qs('#calendar-view').classList.add('active'); else qs('#list-view').classList.add('active');
     btn.classList.add('active');
   }
   window.switchPlanningView = switchPlanningView;
   function previousMonth() { CAL_DATE.setMonth(CAL_DATE.getMonth() - 1); renderCalendar(); }
   function nextMonth() { CAL_DATE.setMonth(CAL_DATE.getMonth() + 1); renderCalendar(); }
-  window.previousMonth = previousMonth;
-  window.nextMonth = nextMonth;
+  window.previousMonth = previousMonth; window.nextMonth = nextMonth;
 
-  function getLocalEvents() {
-    try { return JSON.parse(localStorage.getItem('events') || '[]'); } catch { return []; }
-  }
+  function getLocalEvents() { try { return JSON.parse(localStorage.getItem('events') || '[]'); } catch { return []; } }
   function setLocalEvents(arr) { localStorage.setItem('events', JSON.stringify(arr)); }
   function eventMatchesFilter(ev) {
     const f = qs('#planning-filter').value;
@@ -775,10 +893,7 @@
     `).join('');
   }
 
-  function showAddEventModal() {
-    qs('#event-form').reset();
-    openModal('#event-modal');
-  }
+  function showAddEventModal() { qs('#event-form').reset(); openModal('#event-modal'); }
   window.showAddEventModal = showAddEventModal;
 
   qs('#event-form').addEventListener('submit', (e) => {
@@ -823,11 +938,7 @@
     qs('#borrowed-items').textContent = String(borrowed);
     qs('#available-items').textContent = String(total - borrowed);
   }
-
-  function showAddItemModal() {
-    qs('#item-form').reset();
-    openModal('#item-modal');
-  }
+  function showAddItemModal() { qs('#item-form').reset(); openModal('#item-modal'); }
   window.showAddItemModal = showAddItemModal;
 
   qs('#item-form').addEventListener('submit', (e) => {
@@ -866,11 +977,7 @@
   // ====== Auth modals & actions ======
   qs('#btn-login').addEventListener('click', () => openModal('#login-modal'));
   qs('#btn-register').addEventListener('click', () => openModal('#register-modal'));
-  qs('#btn-logout').addEventListener('click', () => {
-    setToken('');
-    updateAuthUI(null);
-    refreshDashboard();
-  });
+  qs('#btn-logout').addEventListener('click', () => { setToken(''); updateAuthUI(null); refreshDashboard(); });
 
   qs('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -886,43 +993,11 @@
     }
   });
 
-  qs('#register-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    // Tentative d’endpoint courant; s’il n’existe pas, on affiche une alerte.
-    const payload = {
-      email: qs('#reg-email').value.trim(),
-      password: qs('#reg-password').value,
-      nom: qs('#reg-nom').value.trim(),
-      prenom: qs('#reg-prenom').value.trim(),
-      totem: qs('#reg-totem').value.trim(),
-      date_naissance: qs('#reg-date-naissance').value,
-      telephone: qs('#reg-telephone').value.trim(),
-      section: qs('#reg-section').value
-    };
-    try {
-      const ep = '/api/auth/register';
-      await req(ep, { method: 'POST', body: JSON.stringify(payload) });
-      hideAllModals();
-      alert('Demande de compte envoyée. En attente d’approbation.');
-    } catch (err) {
-      alert('Inscription indisponible sur cette instance.');
-    }
-  });
-
-  // ====== Utils ======
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-  function csvEscape(s) {
-    const v = String(s).replace(/"/g, '""');
-    return `"${v}"`;
-  }
-
   // ====== Init ======
   (async function init() {
     initNavigation();
-    await fetchMe();          // met à jour l’UI selon la session
-    await refreshDashboard(); // finances du tableau de bord
+    await fetchMe();
+    await refreshDashboard();
     if (location.hash === '#tresorerie') { await loadTransactions(); }
     renderEnfants();
     renderCalendar();

@@ -41,3 +41,4 @@ Cette version ajoute:
 2. Un approbateur (SUPERADMIN, CHEF_UNITE, CHEF_SECTION de la même section) approuve.
 3. Après approbation, l’utilisateur peut gérer la trésorerie, l’inventaire et les événements de sa section.
 # Scout_gestion
+# SCOUTDESK

@@ -1,12 +1,12 @@
-import Database from 'better-sqlite3';
-import fs from 'fs';
-import path from 'path';
+const Database = require('better-sqlite3');
+const fs = require('fs');
+const path = require('path');
 
 const dbPath = process.env.DB_PATH || './data/scout.db';
 const dir = path.dirname(dbPath);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-export const db = new Database(dbPath);
+const db = new Database(dbPath);
 
 // Schéma initial
 db.exec(`
@@ -87,8 +87,15 @@ CREATE TABLE IF NOT EXISTS children (
 
 // Migrations légères (ajouts de colonnes sans casser si déjà là)
 function safeAlter(sql) {
-  try { db.exec(sql); } catch { /* ignore si déjà appliqué */ }
+  try {
+    db.exec(sql);
+  } catch {
+    /* ignore si déjà appliqué */
+  }
 }
 
 // Ajoute colonne active sur users si absente
 safeAlter(`ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1;`);
+
+module.exports = db;
+

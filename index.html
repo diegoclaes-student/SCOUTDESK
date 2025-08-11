@@ -355,20 +355,13 @@
 <script>
   // ====== Configuration API / Auth ======
   const API_BASE = 'http://localhost:3000';
-  let TOKEN = localStorage.getItem('token') || '';
   let CURRENT_USER = null;
   let CURRENT_SECTION = localStorage.getItem('current_section') || 'Castors';
   let LAST_TX_CACHE = [];
 
-  function setToken(token) {
-    TOKEN = token || '';
-    if (token) localStorage.setItem('token', token); else localStorage.removeItem('token');
-  }
-
   async function req(path, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-    if (TOKEN) headers.Authorization = 'Bearer ' + TOKEN;
-    const res = await fetch(API_BASE + path, { ...options, headers });
+    const res = await fetch(API_BASE + path, { ...options, headers, credentials: 'include' });
     const text = await res.text();
     let body; try { body = text ? JSON.parse(text) : {}; } catch { body = text; }
     if (!res.ok) {
@@ -435,7 +428,6 @@
 
   async function login(email, password) {
     const data = await req('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    setToken(data.token);
     updateAuthUI(data.user);
     return data.user;
   }
@@ -746,88 +738,6 @@
     throw lastErr || new Error('Aucun endpoint approbation valide');
   }
 
-  // ====== Enfants (local) + paiements Assurance/Cotisation (local) ======
-  function getLocalEnfants() { try { return JSON.parse(localStorage.getItem('enfants') || '[]'); } catch { return []; } }
-  function setLocalEnfants(arr) { localStorage.setItem('enfants', JSON.stringify(arr)); }
-  function getLocalPayments() { try { return JSON.parse(localStorage.getItem('enfants_pay') || '{}'); } catch { return {}; } }
-  function setLocalPayments(obj) { localStorage.setItem('enfants_pay', JSON.stringify(obj)); }
-
-  function renderEnfants() {
-    const section = qs('#filter-section').value;
-    const all = getLocalEnfants();
-    const pays = getLocalPayments();
-    const list = all.filter(e => !section || e.section === section);
-    const tbody = qs('#enfants-tbody');
-    if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#666;">Aucun enfant (local)</td></tr>';
-    } else {
-      tbody.innerHTML = list.map(e => {
-        const pay = pays[e.id] || { assurance:false, cotisation:false };
-        return `
-        <tr>
-          <td>${escapeHtml(e.nom)}</td>
-          <td>${escapeHtml(e.prenom)}</td>
-          <td>${escapeHtml(String(e.age))}</td>
-          <td>${escapeHtml(e.section)}</td>
-          <td>${escapeHtml(e.parent)}</td>
-          <td>${escapeHtml(e.tel)}</td>
-          <td><button class="btn btn-${pay.assurance?'primary':'secondary'} btn-xs" data-action="toggle-assu" data-id="${e.id}">${pay.assurance?'Payée':'Marquer payée'}</button></td>
-          <td><button class="btn btn-${pay.cotisation?'primary':'secondary'} btn-xs" data-action="toggle-coti" data-id="${e.id}">${pay.cotisation?'Payée':'Marquer payée'}</button></td>
-          <td><button class="btn btn-danger btn-xs" data-action="del-enfant" data-id="${e.id}">Supprimer</button></td>
-        </tr>`;
-      }).join('');
-    }
-    qs('#enfants-count').textContent = String(all.length);
-  }
-  function showAddEnfantModal() { qs('#enfant-form').reset(); openModal('#enfant-modal'); }
-  window.showAddEnfantModal = showAddEnfantModal;
-  function filterEnfantsBySection() { renderEnfants(); }
-  window.filterEnfantsBySection = filterEnfantsBySection;
-
-  qs('#enfant-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const nom = qs('#enfant-nom').value.trim();
-    const prenom = qs('#enfant-prenom').value.trim();
-    const age = parseInt(qs('#enfant-age').value, 10);
-    const section = qs('#enfant-section').value;
-    const parent = qs('#enfant-parent').value.trim();
-    const tel = qs('#enfant-telephone').value.trim();
-    const all = getLocalEnfants();
-    all.push({ id: Date.now(), nom, prenom, age, section, parent, tel });
-    setLocalEnfants(all);
-    hideAllModals();
-    renderEnfants();
-  });
-
-  document.body.addEventListener('click', (e) => {
-    // enfants actions
-    const delBtn = e.target.closest('button[data-action="del-enfant"]');
-    const assuBtn = e.target.closest('button[data-action="toggle-assu"]');
-    const cotiBtn = e.target.closest('button[data-action="toggle-coti"]');
-    if (delBtn) {
-      const id = Number(delBtn.dataset.id);
-      const all = getLocalEnfants().filter(x => x.id !== id);
-      setLocalEnfants(all);
-      const pays = getLocalPayments(); delete pays[id]; setLocalPayments(pays);
-      renderEnfants();
-    }
-    if (assuBtn) {
-      const id = assuBtn.dataset.id;
-      const pays = getLocalPayments();
-      pays[id] = pays[id] || { assurance:false, cotisation:false };
-      pays[id].assurance = !pays[id].assurance;
-      setLocalPayments(pays);
-      renderEnfants();
-    }
-    if (cotiBtn) {
-      const id = cotiBtn.dataset.id;
-      const pays = getLocalPayments();
-      pays[id] = pays[id] || { assurance:false, cotisation:false };
-      pays[id].cotisation = !pays[id].cotisation;
-      setLocalPayments(pays);
-      renderEnfants();
-    }
-  });
 
   // ====== Planning (local) ======
   let CAL_DATE = new Date();
@@ -977,7 +887,7 @@
   // ====== Auth modals & actions ======
   qs('#btn-login').addEventListener('click', () => openModal('#login-modal'));
   qs('#btn-register').addEventListener('click', () => openModal('#register-modal'));
-  qs('#btn-logout').addEventListener('click', () => { setToken(''); updateAuthUI(null); refreshDashboard(); });
+  qs('#btn-logout').addEventListener('click', async () => { await req('/api/auth/logout', { method: 'POST' }); updateAuthUI(null); refreshDashboard(); });
 
   qs('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -999,10 +909,10 @@
     await fetchMe();
     await refreshDashboard();
     if (location.hash === '#tresorerie') { await loadTransactions(); }
-    renderEnfants();
     renderCalendar();
     renderInventaire();
   })();
 </script>
+<script type="module" src="js/enfants.js"></script>
 </body>
 </html>

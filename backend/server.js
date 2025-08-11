@@ -9,12 +9,15 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const Database = require('better-sqlite3');
+const cookieParser = require('cookie-parser');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 app.use(cors({
   origin: (origin, cb) => cb(null, true),
+  credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -30,6 +33,7 @@ if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
+app.locals.db = db;
 
 // Helpers
 const now = () => new Date().toISOString();
@@ -160,7 +164,7 @@ function sign(user) {
 function requireAuth(req, res, next) {
   try {
     const header = req.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    const token = header.startsWith('Bearer ') ? header.slice(7) : req.cookies?.token;
     if (!token) return res.status(401).json({ error: 'Non authentifié' });
     const payload = jwt.verify(token, JWT_SECRET);
     const u = db.prepare('SELECT id, email, role, status, active, first_name, last_name FROM users WHERE id = ?').get(payload.sub);
@@ -191,9 +195,14 @@ app.post('/api/auth/login', (req, res) => {
   if (!u || !bcrypt.compareSync(password, u.password_hash)) return res.status(400).json({ error: 'Identifiants invalides' });
   if (!u.active || u.status !== 'APPROVED') return res.status(403).json({ error: 'Compte inactif ou non approuvé' });
   const token = sign(u);
-  res.json({ token, user: { id: u.id, email: u.email, role: u.role, status: u.status, active: u.active } });
+  res.cookie('token', token, { httpOnly: true, sameSite: 'lax' });
+  res.json({ user: { id: u.id, email: u.email, role: u.role, status: u.status, active: u.active } });
 });
 app.get('/api/auth/me', requireAuth, (req, res) => res.json(req.user));
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('token');
+  res.json({ ok: true });
+});
 
 // Users: lister et changer rôle (gestion par STAFF_LEAD / UNIT_LEAD, SUPERADMIN tout puissant)
 app.get('/api/users', requireAuth, authorize(), (req, res) => {
@@ -216,6 +225,25 @@ app.patch('/api/users/:id/role', requireAuth, canRolesManage, (req, res) => {
   }
 
   db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+  res.json({ ok: true });
+});
+
+// Children (enfants)
+app.get('/api/children', requireAuth, authorize(), (req, res) => {
+  const rows = db.prepare('SELECT id, nom, prenom, age, date_naissance, section, parent, telephone, notes FROM children ORDER BY nom, prenom').all();
+  res.json(rows);
+});
+app.post('/api/children', requireAuth, authorize(['UNIT_LEAD','STAFF_LEAD']), (req, res) => {
+  const { nom, prenom, age, date_naissance, section, parent, telephone, notes } = req.body || {};
+  if (!nom || !prenom || !section || !parent || !telephone) return res.status(400).json({ error: 'Paramètres invalides' });
+  const info = db.prepare(`INSERT INTO children (nom, prenom, age, date_naissance, section, parent, telephone, notes, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`).run(
+    nom, prenom, age || null, date_naissance || null, section, parent, telephone, notes || '', req.user?.id || null, now()
+  );
+  res.json({ id: info.lastInsertRowid });
+});
+app.delete('/api/children/:id', requireAuth, authorize(['UNIT_LEAD','STAFF_LEAD']), (req, res) => {
+  const id = asInt(req.params.id);
+  db.prepare('DELETE FROM children WHERE id = ?').run(id);
   res.json({ ok: true });
 });
 
@@ -499,9 +527,13 @@ app.patch('/api/dues/assignments/:id/pay', requireAuth, canFinanceWrite, (req, r
 app.get('/api/health', (req, res) => res.json({ ok: true, now: now() }));
 
 // Boot
-if (process.argv.includes('--seed-only')) {
-  console.log('Seed/migration terminés.');
-  process.exit(0);
-} else {
-  app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+if (require.main === module) {
+  if (process.argv.includes('--seed-only')) {
+    console.log('Seed/migration terminés.');
+    process.exit(0);
+  } else {
+    app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+  }
 }
+
+module.exports = app;

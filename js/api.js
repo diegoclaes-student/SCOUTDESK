@@ -102,9 +102,9 @@ const api = {
   async listCategories() {
     const res = await fetch(`${API_BASE}/finance/categories`, { headers: this.headers(false) });
     return res.json();
-  }
+  },
 
-  ,async listTransactions(params = {}) {
+  async listTransactions(params = {}) {
     const url = new URL(`${API_BASE}/finance/transactions`);
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
